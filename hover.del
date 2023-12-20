@@ -1,0 +1,43 @@
+import "../macros-ostw/main.del";
+
+playervar define hoverEffect;
+playervar define hovering;
+
+void StopHover() playervar "stop hover sub"
+    {
+        hovering = false;
+        DestroyEffect(hoverEffect);
+        SetGravity(player, 100);
+    }
+
+rule: "hover"
+    Event.OngoingPlayer
+    if (IsInAir() && !IsJumping() && AltitudeOf() > 0.25)
+    {
+        AbortIf(AltitudeOf() <= 0.25); // check again...
+        hovering = true;
+        SetGravity(player, 0);
+        CreateEffect(all, Effect.Sparkles, Color.Yellow, PositionOf(), 1);
+        hoverEffect = LastCreatedEntity();
+        WaitIfTrue(2);
+        hovering = false;
+        DestroyEffect(hoverEffect);
+        SetGravity(player, 100);
+    }
+
+rule: "stop hover"
+    Event.OngoingPlayer
+    if (AltitudeOf() <= 0.25 || IsButtonHeld(player, Button.Crouch))
+    {
+        StopHover();
+    }
+
+rule: "stop vertical movement"
+    Event.OngoingPlayer
+    if (hovering)
+    {
+        ApplyImpulse(player, Up(), 0.001);
+        ApplyImpulse(player, Down(), 0.001);
+        Wait();
+        LoopIfConditionIsTrue();
+    }

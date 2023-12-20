@@ -1,0 +1,102 @@
+import "../macros-ostw/main.del";
+globalvar define TIMER_GRACE;
+globalvar define t1_timer_running;
+globalvar define t1_timer;
+globalvar define t2_timer_running;
+globalvar define t2_timer;
+playervar define f_deaths;
+
+/*
+first deaths rules are a grace period before first deaths is recorded again
+*/
+
+rule: "Init"
+{
+    TIMER_GRACE = WorkshopSettingInteger("Settings", "First Death Grace Period (How long in seconds will the first death stat be allowed to update) (25)", 25, 1, 120, 0);
+}
+
+rule: "HUD Team 1"
+Event.OngoingPlayer
+Team.Team1
+{
+    CreateHudText(null, null, <"<0><1><2><3><4><5><6><7>",
+    HeroIconString(HeroOf()), 
+
+    <"  KDR: <0> ", Kills(player) / Deaths(player)>,
+    <"- FD: <0> ", f_deaths>,
+    <"- DR: <0> ", DamageDealt(player) / DamageTaken(player)>,
+    <"- UE: <0> ", UltsEarned(player)>,
+    HealingDealt(player) != 0 ? <"- HD: <0> ", HealingDealt(player)> : "",
+    <"- HT: <0> ", HealingTaken(player)>,
+    DamageBlocked(player) != 0 ? <"- DB: <0> ", DamageBlocked(player)> : ""
+
+    >, null, Location.Left, 0, Color.White, Color.SkyBlue, Color.White, Spectators: Spectators.VisibleAlways);
+}
+
+rule: "HUD Team 2"
+Event.OngoingPlayer
+Team.Team2
+{
+    CreateHudText(null, null, <"<0><1><2><3><4><5><6><7>",
+    HeroIconString(HeroOf()), 
+
+    <"  KDR: <0> ", Kills(player) / Deaths(player)>,
+    <"- FD: <0> ", f_deaths>,
+    <"- DR: <0> ", DamageDealt(player) / DamageTaken(player)>,
+    <"- UE: <0> ", UltsEarned(player)>,
+    HealingDealt(player) != 0 ? <"- HD: <0> ", HealingDealt(player)> : "",
+    <"- HT: <0> ", HealingTaken(player)>,
+    DamageBlocked(player) != 0 ? <"- DB: <0> ", DamageBlocked(player)> : ""
+
+    >, null, Location.Right, 0, Color.White, Color.Red, Color.White, Spectators: Spectators.VisibleAlways);
+}
+
+rule: "Record Team 1 First Deaths"
+Event.OnDeath
+Team.Team1
+if (!t1_timer_running)
+if (t1_timer == 0)
+{
+    t1_timer = TIMER_GRACE;
+    t1_timer_running = true;
+    f_deaths++;
+}
+
+rule: "Record Team 2 First Deaths"
+Event.OnDeath
+Team.Team2
+if (!t2_timer_running)
+if (t2_timer == 0)
+{
+    t2_timer = TIMER_GRACE;
+    t2_timer_running = true;
+    f_deaths++;
+}
+
+rule: "Team 1 f_death timer"
+if (t1_timer_running)
+{
+    t1_timer--;
+    Wait(1);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Team 2 f_death timer"
+if (t2_timer_running)
+{
+    t2_timer--;
+    Wait(1);
+    LoopIfConditionIsTrue();
+}
+
+rule: "Stop Team 1 f_death timer"
+if (t1_timer <= 0)
+{
+    t1_timer_running = false;
+}
+
+rule: "Stop Team 2 f_death timer"
+if (t2_timer <= 0)
+{
+    t2_timer_running = false;
+}

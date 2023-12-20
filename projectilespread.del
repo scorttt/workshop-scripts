@@ -1,0 +1,84 @@
+import "../macros-ostw/main.del";
+import "testSettings.json";
+
+globalvar Number groupAmt = 10; // how many projectiles every full rotation
+globalvar Number projectileAmt = Ceil(10 / groupAmt) * groupAmt; // total amount of projectiles
+globalvar Number groupDeg = 360 / groupAmt; // amount of degrees to create the next projectile for the next loop
+globalvar Number initSpread = 1; // spread size
+
+rule: "effect"
+Event.OngoingPlayer
+if (IsInteractHeld())
+{
+    DestroyAllInworldText();
+    DestroyAllEffects();
+
+    Number numGroups = projectileAmt / groupAmt;
+    Number spread = initSpread;
+    Number offset = 0;
+
+    for (Number i = 1; i <= projectileAmt; i++)
+    {
+        Vector angle: SpreadAngleDirection(player, spread, (i * groupDeg) + offset);
+
+        CreateInWorldText(
+            VisibleTo: player,
+            Header: i,
+            Position: RayHit(EyePos(), EyePos() + angle * 100),
+            Scale: 0.2,
+            Clipping: Clipping.DoNotClip,
+            Reevaluation: InworldTextRev.None
+        );
+
+        CreateEffect(player, Effect.Sphere, Color.Black, RayHit(EyePos(), EyePos() + angle * 100), 0, EffectRev.None);
+
+        // CreateProjectile(
+        //     ProjectileType: ProjectileType.MeiIcicle, 
+        //     Player: player, 
+        //     StartPosition: EyePos(), 
+        //     Direction: angle, 
+        //     Relative: Relative.ToWorld, 
+        //     ModifyHealthType: ModifyHealthType.Damage, 
+        //     AffectedTeam: Team.All, 
+        //     Amount: 50, 
+        //     AmountScalar: 1, 
+        //     ExplosionRadius: 5, 
+        //     ExplosionEffect: PlayEffect.SigmaHypersphereImplosionEffect, 
+        //     ExplosionSoundEffect: PlayEffect.SigmaHypersphereImplosionSound, 
+        //     Oversize: 0, 
+        //     Speed: 35, 
+        //     Lifetime: 99999, 
+        //     Impulse: 0,
+        //     RicochetCount: 99999,
+        //     Gravity: 0
+        // );
+
+        if (i != 1 && i % groupAmt == 0)
+        {
+            spread = initSpread - Near(i / groupAmt) * (initSpread / numGroups);
+            offset += groupDeg / 2; // spread rotation offset (degrees)
+        }
+    }
+
+    // CreateProjectile(
+    //         ProjectileType: ProjectileType.OrisaFusionDriver, 
+    //         Player: player, 
+    //         StartPosition: EyePos(), 
+    //         Direction: Facing(), 
+    //         Relative: Relative.ToWorld, 
+    //         ModifyHealthType: ModifyHealthType.Damage, 
+    //         AffectedTeam: Team.All, 
+    //         Amount: 50, 
+    //         AmountScalar: 1, 
+    //         ExplosionRadius: 5, 
+    //         ExplosionEffect: PlayEffect.SigmaHypersphereImplosionEffect, 
+    //         ExplosionSoundEffect: PlayEffect.SigmaHypersphereImplosionSound, 
+    //         Oversize: 0, 
+    //         Speed: 35, 
+    //         Lifetime: 99999, 
+    //         Impulse: 0,
+    //         RicochetCount: 0,
+    //         Gravity: 0
+    //     );
+
+}

@@ -1,0 +1,228 @@
+// import "cancer.del";
+
+macro player: EventPlayer();
+macro host:   HostPlayer();
+macro Facing(): FacingDirectionOf();
+macro EnemyPlayers(): AllPlayers(OppositeTeamOf(TeamOf()));
+macro verText: "Ver  1.2.0";
+
+playervar define bhopSpeed;
+playervar define speedAccumInAir;
+playervar define effect;
+playervar define secondaryHit;
+playervar define primaryHit;
+playervar define enemyPlayers;
+playervar define damageText;
+playervar define criticalText;
+playervar define textChase;
+
+// global constants
+globalvar define DEFAULT_START_SPEED = 100;
+globalvar define BHOP_MAX_SPEED = 340;
+globalvar define BHOP_SPEED_INCREMENT = 25;
+globalvar define SECONDARY_PROJECTILE_SPEED = 110;
+globalvar define HERO_SELECT_TIME = 10;
+globalvar define MATCH_TIME = 1200;
+
+rule: "Init"
+    {
+        DisableInspectorRecording();
+        DisableScoring();
+        DisableAnnouncer();
+        SetMatchTime(HERO_SELECT_TIME)
+        Wait(HERO_SELECT_TIME + 1);
+        SetMatchTime(MATCH_TIME);
+        // CreateHudText(host, null, <"Position: <0>", PositionOf(host)>, null, Location.Right, -1);
+        // CreateHudText(host, null, <"Facing Direction: <0>", FacingDirectionOf(host)>, null, Location.Right, -1);
+        // CreateHudText(host, null, <"Horizontal Facing Direction: <0>", HorizontalFacingAngleOf(host)>, null, Location.Right, -1);
+        // CreateHudText(host, null, <"Vertical Facing Direction: <0>", VerticalFacingAngleOf(host)>, null, Location.Right, -1);
+        CreateHudText(host, null, <"Server Load: (<0>% Cur | <1>% Avg | <2>% Peak)", ServerLoad(), ServerLoadAverage(), ServerLoadPeak()>, null, Location.Right, -1);
+        CreateHudText(AllPlayers(), null, verText, null, Location.Left, -1);
+        CreateHudText(AllPlayers(), null, "Created by Fuzsion#11545", null, Location.Left, -1);
+    }
+
+rule: "dbg when im lonely"
+    Event.OngoingPlayer
+    if (IsButtonHeld(player, Button.Interact))
+    {
+        CreateDummyBot(HeroOf(host), OppositeTeamOf(), -1, host, FacingDirectionOf(host));
+        MinWait();
+    }
+
+rule: "Player Join Init"
+    Event.OnPlayerJoin
+    {
+        // CreateHudText(player, null, null, <"Throttle : <0>", ThrottleOf()>, Location.Top, -198);
+        Wait(1.5);
+        CreateHudText(player, null, null, <"Speed: <0> M/S", (HorizontalSpeedOf())>, Location.Top, 200);
+    }
+
+rule: "Starting Speed"
+    Event.OngoingPlayer
+    {
+        bhopSpeed = DEFAULT_START_SPEED;
+    }
+
+rule: "Repeat Jump if space is being held"
+    Event.OngoingPlayer
+    if (IsOnGround() && IsButtonHeld(player, Button.Jump))
+    {
+        DisallowButton(player, Button.Jump);
+        MinWait();
+        AllowButton(player, Button.Jump);
+    }
+
+playervar define isChasing;
+rule: "If Airborne"
+    Event.OngoingPlayer
+    if (IsInAir())
+    {
+        speedAccumInAir = HorizontalSpeedOf();
+        Wait(0.05);
+
+        ChaseVariableAtRate(bhopSpeed, BHOP_MAX_SPEED, BHOP_SPEED_INCREMENT, RateChaseReevaluation.DestinationAndRate);
+        isChasing = true;
+        //SetMoveSpeed(player, bhopSpeed);
+
+        //LoopIfConditionIsTrue();
+    }
+
+rule: "Update Speed"
+    Event.OngoingPlayer
+    if (isChasing)
+    {
+        speedAccumInAir = HorizontalSpeedOf();
+        SetMoveSpeed(player, bhopSpeed);
+        Wait(0.032);
+        LoopIfConditionIsTrue();
+    }
+
+rule: "Update isChasing"
+    Event.OngoingPlayer
+    if (bhopSpeed == BHOP_MAX_SPEED || bhopSpeed == DEFAULT_START_SPEED)
+    {
+        isChasing = false;
+    }
+
+rule: "Stop if player is on ground"
+    Event.OngoingPlayer
+    if (IsOnGround() && bhopSpeed > DEFAULT_START_SPEED)
+    {
+
+        /* default behaviour */
+
+        // Wait(0.2, WaitBehavior.AbortWhenFalse);
+        // StopChasingVariable(bhopSpeed);
+        // bhopSpeed = DEFAULT_START_SPEED;
+        // SetMoveSpeed(player, bhopSpeed);
+
+
+        Wait(0.2, WaitBehavior.AbortWhenFalse);
+        StopChasingVariable(bhopSpeed);
+        ChaseVariableAtRate(bhopSpeed, DEFAULT_START_SPEED, 325, RateChaseReevaluation.DestinationAndRate);
+        isChasing = true;
+        
+        SetMoveSpeed(player, bhopSpeed);
+    }
+
+rule: "Reset speed if turning too fast"
+    Event.OngoingPlayer
+    if (HorizontalSpeedOf() < speedAccumInAir - 0.45)
+    {
+        StopChasingVariable(bhopSpeed);
+        isChasing = false;
+        bhopSpeed = DEFAULT_START_SPEED;
+        SetMoveSpeed(player, bhopSpeed);
+    }
+
+rule: "Prevent speed gain if no movement in air"
+    Event.OngoingPlayer
+    if (IsInAir() && HorizontalSpeedOf() == 0)
+    {
+        StopChasingVariable(bhopSpeed);
+        isChasing = false;
+        bhopSpeed = DEFAULT_START_SPEED;
+        SetMoveSpeed(player, bhopSpeed);
+        Wait(0.025);
+        LoopIfConditionIsTrue();
+    }
+
+rule: "Damage Number"
+    Event.OnDamageDealt
+    {
+        textChase = Vector(0,1,0);
+        
+        if (EventWasCriticalHit())
+            CreateInWorldText(player, <"Critical!", EventWasCriticalHit()>, PositionOf(Victim()) + textChase, 1.2, Clipping.DoNotClip, InworldTextRev.VisibleToPositionAndString, Color.Red);
+        else
+            CreateInWorldText(player, <"-<0>", EventDamage()>, PositionOf(Victim()) + textChase, 1.2, Clipping.DoNotClip, InworldTextRev.VisibleToPositionAndString, Color.Yellow);
+
+        damageText = LastTextID();    
+        ChaseVariableAtRate(textChase, Vector(0,1.5,0), 2, RateChaseReevaluation.DestinationAndRate);
+        Wait(0.5);
+        DestroyInWorldText(damageText);
+    }
+
+playervar define primaryStartPos;
+
+rule: "Primary effect"
+    Event.OngoingPlayer
+    if (IsFiringPrimary())
+    {
+        primaryStartPos = WorldVectorOf(Right() - Vector(0, 0.3, 0), player) * 0.18;
+        CreateBeamEffect(AllPlayers(), BeamType.BadBeam, EyePosition() + Facing() + primaryStartPos, RayCastHitPosition(EyePosition(), EyePosition() + (Facing() * 100), AllLivingPlayers()), Color.Aqua, EffectRev.None);
+        effect = LastCreatedEntity();
+        primaryHit = RayCastHitPosition(EyePosition(), EyePosition() + Facing() * 100, AllPlayers(), player);
+        PlayEffect(AllPlayers(), PlayEffect.GoodExplosion, Color.Aqua, EyePosition() + Facing() + primaryStartPos, 0.2);
+        PlayEffect(AllPlayers(), PlayEffect.GoodExplosion, Color.Aqua, primaryHit, 0.2);
+
+        Wait(0.25);
+        DestroyEffect(effect);
+    }
+
+playervar define secondaryEyePos;
+playervar define secondaryOrb;
+playervar define secondaryStartPos;
+rule: "Secondary Fire"
+    Event.OngoingPlayer
+    if (IsButtonHeld(player, Button.SecondaryFire) && IsAlive())
+    {
+        secondaryHit = RayCastHitPosition(EyePosition(), EyePosition() + Facing() * 100, AllPlayers(), player);
+        secondaryStartPos = WorldVectorOf(Right() - Vector(0, 0.3, 0), player) * 0.18;
+        secondaryEyePos = EyePosition() + secondaryStartPos;
+        DestroyEffect(secondaryOrb);
+        PlayEffect(VisibleTo: AllPlayers(), 
+                   Type: PlayEffect.RingExplosionSound, 
+                   Position: EyePosition() + Facing() + WorldVectorOf(Right() - Vector(0, 0.3, 0), player) * 0.17, 
+                   Radius: 50);
+        PlayEffect(AllPlayers(), PlayEffect.GoodExplosion, Color.Red, EyePosition() + Facing() + secondaryStartPos, 0.2);
+
+        // projectile
+        CreateEffect(AllPlayers(), Effect.Orb, Color.Red, secondaryEyePos, 0.1);
+        secondaryOrb = LastCreatedEntity();
+        ChaseVariableAtRate(secondaryEyePos, secondaryHit, SECONDARY_PROJECTILE_SPEED, RateChaseReevaluation.DestinationAndRate);
+
+        Wait(0.5);
+
+    }
+
+rule: "Secondary Fire Impulse"
+    Event.OngoingPlayer
+    if (DistanceBetween(secondaryEyePos, secondaryHit) < 0.1 || RayCastHitPlayer(EyePosition(), secondaryEyePos, AllLivingPlayers(), player) != null)
+    {
+        StopChasingVariable(secondaryEyePos);
+        define players = FilteredArray(AllLivingPlayers(), DistanceBetween(ArrayElement(), secondaryEyePos) <= 4.5)
+        for (define loop = 0; loop < CountOf(players); loop++)
+        {
+            ApplyImpulse(players[loop], DirectionTowards(secondaryEyePos, players[loop] + Vector(0, YOf(EyePosition(players[loop]) - players[loop]) / 2, 0)), 15, Relative.ToWorld, ContraryMotion.Incorporate);
+        }
+        
+        // projectile hit effect
+        PlayEffect(AllPlayers(), PlayEffect.GoodExplosion, Color.Red, secondaryHit, 1.5);
+        PlayEffect(VisibleTo: AllPlayers(), 
+                   Type: PlayEffect.RingExplosionSound, 
+                   Position: EyePosition() + Facing() + WorldVectorOf(Right() - Vector(0, 0.3, 0), player) * 0.17, 
+                   Radius: 15);
+        DestroyEffect(secondaryOrb);
+    }
+

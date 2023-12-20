@@ -1,0 +1,108 @@
+import "../macros-ostw/main.del";
+class Ruler
+{
+    public Boolean enabled;
+    public Vector startPos;
+    public Vector endPos;
+
+    public String distanceText;
+    public String startText;
+    public String endText;
+    public Any startEffect;
+    public Any endEffect;
+
+    public void Toggle()
+    {
+        if (enabled)
+        {
+            	AllowButton(EventPlayer(), Button.PrimaryFire);
+				AllowButton(EventPlayer(), Button.SecondaryFire);
+
+				DestroyEffect(startEffect);
+				DestroyEffect(endEffect);
+
+				DestroyHudText(distanceText);
+                DestroyHudText(startText);
+                DestroyHudText(endText);
+
+                enabled = false;
+        }
+        else
+        {
+            	DisallowButton(EventPlayer(), Button.PrimaryFire);
+				DisallowButton(EventPlayer(), Button.SecondaryFire);
+
+				// CreateHudText(EventPlayer(), null, null, <"<0>: <1>", <"distance">, DistanceBetween(startPos + Up(), endPos + Up())>, Location.Right, 7);
+                // distanceText = LastTextID();
+
+                // CreateHudText(EventPlayer(), null, null, <"<0>: <1>", <"start">, startPos + Up()>, Location.Right, 5);
+		        // startText = LastTextID();
+
+		        // CreateHudText(EventPlayer(), null, null, <"<0>: <1>", <"finish">, endPos + Up()>, Location.Right, 6);
+		        // endText = LastTextID();
+
+                CreateInWorldText(EventPlayer(), <"<0>: <1>", <"distance">, DistanceBetween(startPos + Up(), endPos + Up())>, (startPos + endPos) / 2, 2, Clipping.DoNotClip);
+                distanceText = LastTextID();
+
+                CreateInWorldText(EventPlayer(), <"<0>: <1>", <"start">, startPos + Up()>, startPos + Up(), 2, Clipping.DoNotClip);
+		        startText = LastTextID();
+
+		        CreateInWorldText(EventPlayer(), <"<0>: <1>", <"finish">, endPos + Up()>, endPos + Up(), 2, Clipping.DoNotClip);
+		        endText = LastTextID();
+
+                Wait(0.5); // prevents placement immediately
+				enabled = true;
+        }
+    }
+
+    public void SetStart()
+    {
+		DestroyEffect(startEffect);
+		startPos = RayCastHitPosition(EyePosition(), EyePosition() + (FacingDirectionOf() * 256), null, null, true);
+		CreateEffect(AllPlayers(), Effect.Sphere, Color.Blue, startPos + Up(), 0.15, EffectRev.VisibleToPositionAndRadius);
+		startEffect = LastCreatedEntity();
+    }
+
+    public void SetEnd()
+    {
+		DestroyEffect(endEffect);
+		endPos = RayCastHitPosition(EyePosition(), EyePosition() + (FacingDirectionOf() * 256), null, null, true);
+		CreateEffect(AllPlayers(), Effect.Sphere, Color.Green, endPos + Up(), 0.15, EffectRev.VisibleToPositionAndRadius);
+		endEffect = LastCreatedEntity();
+    }
+}
+
+
+/* Workshop Script */
+playervar Ruler ruler;
+
+rule: "Ruler init"
+Event.OngoingPlayer
+{
+    ruler = new Ruler();
+}
+
+rule: "Ruler toggle"
+Event.OngoingPlayer
+if (IsButtonHeld(player, Button.Crouch))
+{
+    // look down, hold ult, then crouch
+    if (IsButtonHeld(player, Button.Ultimate) && (RoundToInteger(YOf(Facing()), Rounding.Nearest) == -1))
+    {
+        ruler.Toggle();
+    }
+}
+
+rule: "Ruler start"
+Event.OngoingPlayer
+if (ruler.enabled && IsButtonHeld(player, Button.PrimaryFire))
+{
+    ruler.SetStart();
+}
+
+rule: "Ruler end"
+Event.OngoingPlayer
+if (ruler.enabled && IsButtonHeld(player, Button.SecondaryFire))
+{
+    ruler.SetEnd();
+}

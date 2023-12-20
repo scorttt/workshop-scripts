@@ -1,0 +1,56 @@
+import "../macros-ostw/main.del";
+import "testSettings.json";
+// rule: "effects"
+// {
+//     vec pos;
+//     vec old_pos = Vector(0, 1, 0);
+
+//     num cir_points = 64;
+//     num radians = 0;
+//     num radius = 5;
+//     num pi = (2 * Pi()) / cir_points;
+//     any cir_effects;
+//     for (num i = 0; i < cir_points + 1; i++)
+//     {
+//         pos = Vector(radius * CosineFromRadians(radians), 0, radius * SineFromRadians(radians));
+
+//         // can alrernatively use beam effects if i use Once(old_pos) for starting position
+//         CreateEffect(all, Effect.Sphere, Color.Turquoise, Once(pos), 0.2);
+//         cir_effects[i] = LastCreatedEntity();
+
+//         old_pos = pos;
+//         radians += pi;
+//     }
+
+//     DestroyEffect(FirstOf(cir_effects));
+// }
+
+rule: "effects"
+{
+    num segments = 8;
+    num comp1;
+    num comp2;
+
+    num radius = 5;
+    num angle = 0;
+    any cir_effects;
+    vec old_pos = Vector();
+
+    for (num i = 0; i < segments + 1; i++)
+    {
+        comp1 = SineFromRadians(Deg2Rad() * angle) * radius; 
+        comp2 = CosineFromRadians(Deg2Rad() * angle) * radius; 
+
+        vec pos = Vector(comp1, 1, comp2); 
+        // CreateBeamEffect(all, BeamType.GrappleBeam, Once(old_pos), Once(pos));
+        // cir_effects[i][0] = LastCreatedEntity();
+        CreateEffect(all, Effect.Sphere, Color.Turquoise, Once(pos), 0.2);
+        cir_effects[i][1] = LastCreatedEntity();
+
+        old_pos = pos;
+        angle += 360 / segments;
+    }
+
+    DestroyEffect(cir_effects[0][0]);
+    DestroyEffect(cir_effects[0][1]);
+}

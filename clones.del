@@ -1,0 +1,570 @@
+/* Macros */
+import "../macros-ostw/main.del";
+
+/* Global Vars */
+globalvar define player1;
+globalvar define player2;
+globalvar define team1Bots;
+globalvar define team2Bots;
+globalvar define noSpawnRoomExists;
+
+/* Player Vars */
+playervar define playerHero;
+playervar define notFirstSpawn;
+playervar define heroSwitch;
+playervar define owner;
+playervar define botAlive;
+playervar define botReplaced;
+playervar define botRespawn;
+playervar define hasCCStatus;
+playervar define persistentMovement;
+
+rule: "Player Join Init"
+    Event.OnPlayerJoin
+    {
+        PositionText();
+        FacingText();
+    }
+
+rule: "Init"
+    {
+        DisableInspectorRecording();
+        team1Bots = EmptyArray();
+        team2Bots = EmptyArray();
+    }
+
+// rule: "red dot dbg"
+//     Event.OngoingPlayer
+//     {
+//         CreateEffect(AllPlayers(TeamOf(owner)), Effect.Sphere, Color.Red, RayCastHitPosition(EyePosition(), EyePosition() + FacingDirectionOf() * 100), 0.1);
+//     }
+
+// rule: "stun bots dbg"
+//     Event.OngoingPlayer
+//     if (IsDummyBot() && IsButtonHeld(host, Button.Interact))
+//     {
+//         SetStatus(FilteredArray(player, EntityExists(owner)), null, Status.Stunned, 5)
+//     }
+
+// rule: "kill owner dbg"
+//     Event.OngoingPlayer
+//     if (IsDummyBot() && IsButtonHeld(owner, Button.Interact))
+//     {
+//         Kill(FilteredArray(owner, EntityExists(player)))
+//     }
+
+// rule: "kill bots dbg"
+//     Event.OngoingPlayer
+//     if (IsDummyBot() && IsButtonHeld(owner, Button.Interact))
+//     {
+//         Kill(FilteredArray(player, EntityExists(owner)))
+//     }
+
+rule: "Create Bots"
+    Event.OngoingPlayer
+    if (HasSpawned() && !IsDummyBot() && !notFirstSpawn)
+    {
+        playerHero = HeroOf();
+
+        CreateDummyBot(HeroOf(), TeamOf(), -1, owner);
+        MinWait();
+        CreateDummyBot(HeroOf(), TeamOf(), -1, owner);
+        MinWait();
+        CreateDummyBot(HeroOf(), TeamOf(), -1, owner);
+        MinWait();
+        CreateDummyBot(HeroOf(), TeamOf(), -1, owner);
+        MinWait();
+        CreateDummyBot(HeroOf(), TeamOf(), -1, owner);
+
+        notFirstSpawn = true;
+    }
+
+rule: "Hero Changed in spawnroom"
+    Event.OngoingPlayer
+    if (IsInSpawnRoom() && playerHero != HeroOf())
+    {
+        playerHero = HeroOf();
+    }
+
+rule: "Owner's Hero Changed"
+    Event.OngoingPlayer
+    if (HeroOf(owner) != HeroOf())
+    {
+        ForcePlayerHero(player, HeroOf(owner));
+    }
+
+globalvar define player1Aim;
+globalvar define player2Aim;
+
+rule: "Player 1 Aim"
+    {
+        player1Aim = RayCastHitPosition(EyePosition(player1), 
+                                        EyePosition(player1) + (FacingDirectionOf(player1) * 100), 
+                                        AllLivingPlayers(OppositeTeamOf(TeamOf(player1))), 
+                                        AllLivingPlayers(TeamOf(player1)), 
+                                        true);
+
+        Wait(0.016);
+        Loop();
+    }
+
+rule: "Player 2 Aim"
+    {
+        player2Aim = RayCastHitPosition(EyePosition(player2), 
+                                        EyePosition(player2) + (FacingDirectionOf(player2) * 100), 
+                                        AllLivingPlayers(OppositeTeamOf(TeamOf(player2))), 
+                                        AllLivingPlayers(TeamOf(player2)), 
+                                        true);
+    
+        Wait(0.016);
+        Loop();
+   }
+
+rule: "Bot Joined"
+    Event.OngoingPlayer
+    if (IsDummyBot() && HasSpawned())
+    {
+        if (TeamOf() == Team.Team1)
+        {
+           owner = player1;
+           team1Bots = Append(team1Bots, player);
+
+           StartFacing(player, DirectionTowards(EyePosition(), player1Aim), 1000);
+        }
+        else
+        {
+           owner = player2;
+           team2Bots = Append(team2Bots, player);
+
+           StartFacing(player, DirectionTowards(EyePosition(), player2Aim), 1000);
+        }
+
+        /* aim */
+        // RayCastHitPosition(EyePosition(owner), EyePosition(owner) + (FacingDirectionOf(owner) * 25), AllPlayers(OppositeTeamOf(TeamOf())), AllPlayers(TeamOf()))
+        // StartFacing(player, 
+        //             DirectionTowards(EyePosition(), 
+        //                              RayCastHitPosition(EyePosition(owner), 
+        //                                                 EyePosition(owner) + (FacingDirectionOf(owner) * 100), 
+        //                                                 AllLivingPlayers(OppositeTeamOf(TeamOf())), 
+        //                                                 AllLivingPlayers(TeamOf()), 
+        //                                                 true)), 
+        //             1000)
+
+                         
+        /* movement */
+        StartThrottleInDirection(player, WorldVectorOf(ThrottleOf(owner), owner, LocalVector.Rotation), 0.000001 + (ThrottleOf(owner) != Vector(0,0,0)));
+   }
+
+rule: "Player Joined"
+    Event.OnPlayerJoin
+    if (!IsDummyBot())
+    {
+        if (TeamOf() == Team.Team1)
+        player1 = player;
+        else
+        player2 = player;
+    }
+
+rule: "Bot Alive"
+    Event.OngoingPlayer
+    if (IsDummyBot() && IsAlive())
+    {
+        botAlive = true;
+    }
+
+rule: "Bot Dead"
+    Event.OngoingPlayer
+    if (IsDummyBot() && IsDead())
+    {
+        botAlive = false;
+    }
+
+rule: "Is CCed"
+    Event.OngoingPlayer
+    if (HasStatus(player, Status.Asleep) || 
+        HasStatus(player, Status.Frozen) || 
+        HasStatus(player, Status.KnockedDown) || 
+        HasStatus(player, Status.Rooted) || 
+        HasStatus(player, Status.Stunned) || 
+        HasStatus(owner, Status.Asleep) || 
+        HasStatus(owner, Status.Frozen) || 
+        HasStatus(owner, Status.KnockedDown) || 
+        HasStatus(owner, Status.Rooted) || 
+        HasStatus(owner, Status.Stunned))
+    {
+        hasCCStatus = true;
+    }
+
+rule: "Is not CCed"
+    Event.OngoingPlayer
+    if (!HasStatus(player, Status.Asleep) && 
+        !HasStatus(player, Status.Frozen) && 
+        !HasStatus(player, Status.KnockedDown) && 
+        !HasStatus(player, Status.Rooted) && 
+        !HasStatus(player, Status.Stunned) && 
+        !HasStatus(owner, Status.Asleep) && 
+        !HasStatus(owner, Status.Frozen) && 
+        !HasStatus(owner, Status.KnockedDown) && 
+        !HasStatus(owner, Status.Rooted) && 
+        !HasStatus(owner, Status.Stunned))
+    {
+        hasCCStatus = false;
+    }
+
+rule: "Movement Ability True"
+    Event.OngoingPlayer
+    if (IsUsingAbility1() && (playerHero == Hero.Reinhardt || playerHero == Hero.Dva))
+    {
+        persistentMovement = true;
+    }
+
+rule: "Movement Ability False"
+    Event.OngoingPlayer
+    if (!IsUsingAbility1() && (playerHero == Hero.Reinhardt || playerHero == Hero.Dva))
+    {
+        persistentMovement = false;
+    }
+
+rule: "Bot :: Teleport if out of range of player"
+    Event.OngoingPlayer
+    if (botAlive && IsAlive(owner) && DistanceBetween(owner, player) > 5 && !persistentMovement && !hasCCStatus)
+    {
+        Wait(0.3);
+        Teleport(player, owner);
+    }
+
+rule: "Bot :: Teleport if out of sight of player"
+    Event.OngoingPlayer
+    if (botAlive && IsAlive(owner) && !IsInLineOfSight(owner, player) && !hasCCStatus)
+    {
+        Teleport(player, owner);
+        Wait(0.5, WaitBehavior.AbortWhenFalse);
+        Loop();
+    }
+
+rule: "Prevent Bot Respawn When Owner is Dead"
+    Event.OngoingPlayer
+    if (IsDummyBot() && (IsDead(owner) || !HasSpawned(owner)))
+    {
+        DisableRespawning(player);
+    }
+
+rule: "Stop preventing bot respawn"
+    Event.OngoingPlayer
+    if (botReplaced && IsAlive())
+    {
+        botReplaced = false;
+        //if (IsDead() && IsAlive(owner))
+        //   Respawn();
+    }
+
+rule: "Stop preventing bot respawn2 test"
+    Event.OngoingPlayer
+    if (botRespawn)
+    {
+        Wait(6);
+        EnableRespawning(player);
+        botRespawn = false;
+    }
+
+rule: "Reenable Bot Respawn - Player Respawns"
+    Event.OngoingPlayer
+    if (IsDummyBot() && IsAlive(owner))
+    {
+        if (!botRespawn)
+        {
+           EnableRespawning(player);
+           botRespawn = true;
+        }
+
+        if (IsDead() && !botReplaced)
+        Respawn();
+
+        ForcePlayerHero(player, HeroOf(owner));
+    }
+
+rule: "Reenable Bot Respawn - Player Hero Switch"
+    Event.OngoingPlayer
+    if (IsDummyBot() && HasSpawned(owner))
+    {
+        EnableRespawning(player);
+
+        if (IsDead())
+            Respawn();
+
+        ForcePlayerHero(player, HeroOf(owner));
+    }
+
+
+rule: "Hero change input"
+    Event.OngoingPlayer
+    if (noSpawnRoomExists && !IsDummyBot() && IsButtonHeld(player, Button.Crouch) && (IsButtonHeld(player, Button.Interact)) && !heroSwitch && IsAlive())
+    {
+        heroSwitch = true;
+
+        SetAllowedHeroes(player, RemoveFromArray(AllHeroes(), HeroOf()));
+        Wait(0.2);
+        ResetHeroAvailability();
+    }
+
+rule: "Hero change input 2"
+    Event.OngoingPlayer
+    if (!IsDummyBot() && HasSpawned() && heroSwitch)
+    {
+        heroSwitch = false;
+    }
+
+// this is a to-do. if deltin ever adds to-do tracking and syntax it will look like this:
+// @todo: fix fucking everything with respawns
+
+rule: "Human player dead: Replace nearest bot"
+    Event.OnDeath
+    if (!IsDummyBot())
+    {
+        define closestLivingBot = FirstOf(SortedArray(AllLivingPlayers(TeamOf()), DistanceBetween(ArrayElement(), player)));
+
+        if (closestLivingBot != null && closestLivingBot != player)
+        {
+            closestLivingBot.botReplaced = true;
+            Kill(closestLivingBot);
+            Teleport(player, closestLivingBot);
+            Resurrect(player);
+        }
+    }
+
+rule: "Kill bots if player hasn't spawned"
+    Event.OngoingPlayer
+    if (!HasSpawned(owner) && owner != 0)
+    {
+        Kill();
+    }
+
+rule: "Bots have ult whenever player has ult"
+    Event.OngoingPlayer
+    if (UltimateChargePercent(owner) == 100 && IsAlive(owner))
+    {
+        SetUltimateAbilityEnabled(player, true);
+        SetUltimateCharge(player, 100);
+    }
+
+
+rule: "Disable bot ult"
+    Event.OngoingPlayer
+    if (!IsUsingUltimate(owner) && IsDummyBot())
+    {
+        SetUltimateAbilityEnabled(player, false);
+    }
+
+rule: "Announce when Bots have ult"
+    Event.OngoingPlayer
+    if (IsDummyBot() && UltimateChargePercent() == 100)
+    {
+        Communicate(AllPlayers(TeamOf(owner)), Communication.UltimateStatus);
+    }
+
+rule: "Create HUD Text"
+    Event.OngoingPlayer
+    if (IsDummyBot())
+    {
+        Wait(1.5);
+        /* spacing */
+        CreateHudText(FilteredArray(owner, EntityExists(player)), null, " ", " ", Location.Left, -1);
+        CreateHudText(FilteredArray(owner, EntityExists(player)), null, " ", " ", Location.Left, -1);
+        CreateHudText(FilteredArray(owner, EntityExists(player)), null, " ", " ", Location.Left, -1);
+        MinWait();
+
+        /* bot healthy */
+        CreateHudText(FilteredArray(owner, EntityExists(player) && IsAlive() && NormalizedHealth() > 0.75), // Visible To
+                    HeroIconString(HeroOf()), // Header
+                    null, // Subheader
+                    <"  <0> HP", /* (RoundToInteger(NormalizedHealth() * 100, Rounding.Nearest) */ (RoundToInteger(Health(), Rounding.Nearest))>, // Text
+                    Location.Left, // Location
+                    SlotOf(), // Sort Order :: SlotOf() fixes re-sort on health update
+                    Color.Green, // Header Color
+                    Color.Green, // Subheader Color
+                    Color.Green, // Text Color
+                    HudTextRev.VisibleToAndString, // Reevaluation
+                    Spectators.DefaultVisibility); // Spectators
+
+        /* bot hurt */
+        CreateHudText(FilteredArray(owner, EntityExists(player) && IsAlive() && NormalizedHealth() < 0.75 && NormalizedHealth() > 0.35), // Visible To
+                    HeroIconString(HeroOf()), // Header
+                    null, // Subheader
+                    <"  <0> HP", /* (RoundToInteger(NormalizedHealth() * 100, Rounding.Nearest) */ (RoundToInteger(Health(), Rounding.Nearest))>, // Text
+                    Location.Left, // Location
+                    SlotOf(), // Sort Order :: SlotOf() fixes re-sort on health update
+                    Color.Yellow, // Header Color
+                    Color.Yellow, // Subheader Color
+                    Color.Yellow, // Text Color
+                    HudTextRev.VisibleToAndString, // Reevaluation
+                    Spectators.DefaultVisibility); // Spectators
+
+        /* bot critical */
+        CreateHudText(FilteredArray(owner, EntityExists(player) && IsAlive() && NormalizedHealth() < 0.35), // Visible To
+                    HeroIconString(HeroOf()), // Header
+                    null, // Subheader
+                    <"  <0> HP", /* (RoundToInteger(NormalizedHealth() * 100, Rounding.Nearest)  */ (RoundToInteger(Health(), Rounding.Nearest))>, // Text
+                    Location.Left, // Location
+                    SlotOf(), // Sort Order :: SlotOf() fixes re-sort on health update
+                    Color.Red, // Header Color
+                    Color.Red, // Subheader Color
+                    Color.Red, // Text Color
+                    HudTextRev.VisibleToAndString, // Reevaluation
+                    Spectators.DefaultVisibility); // Spectators
+
+        /* bot dead */
+        CreateHudText(FilteredArray(owner, EntityExists(player) && IsDead()), // Visible To
+                    HeroIconString(HeroOf()), // Header
+                    null, // Subheader
+                    "  Dead", // Text
+                    Location.Left, // Location
+                    SlotOf(), // Sort Order :: SlotOf() fixes re-sort on health update
+                    Color.Red, // Header Color
+                    Color.Red, // Subheader Color
+                    Color.Red, // Text Color
+                    HudTextRev.VisibleToAndString, // Reevaluation
+                    Spectators.DefaultVisibility); // Spectators
+    }
+
+/* Input Emulation - Start */
+rule: "Bot :: Pressed Primary"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.PrimaryFire))
+    {
+        StartHoldingButton(player, Button.PrimaryFire);
+    }
+
+rule: "Bot :: Pressed Secondary"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.SecondaryFire))
+    {
+        StartHoldingButton(player, Button.SecondaryFire);
+    }
+
+rule: "Bot :: Pressed Ability 1"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Ability1))
+    {
+        StartHoldingButton(player, Button.Ability1);
+    }
+
+rule: "Bot :: Pressed Ability 2"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Ability2))
+    {
+        StartHoldingButton(player, Button.Ability2);
+    }
+
+rule: "Bot :: Pressed Ultimate"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Ultimate))
+    {
+        StartHoldingButton(player, Button.Ultimate);
+    }
+
+rule: "Bot :: Pressed Jump"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Jump))
+    {
+        StartHoldingButton(player, Button.Jump);
+    }
+
+rule: "Bot :: Pressed Crouch"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Crouch))
+    {
+        StartHoldingButton(player, Button.Crouch);
+    }
+
+rule: "Bot :: Pressed Melee"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Melee))
+    {
+        StartHoldingButton(player, Button.Melee);
+    }
+
+rule: "Bot :: Pressed Reload"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Reload))
+    {
+        StartHoldingButton(player, Button.Reload);
+    }
+
+
+rule: "Bot :: Pressed Interact"
+    Event.OngoingPlayer
+    if (botAlive && IsButtonHeld(owner, Button.Interact))
+    {
+        StartHoldingButton(player, Button.Interact);
+    }
+
+rule: "Bot :: Released Primary"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.PrimaryFire))
+    {
+        StopHoldingButton(player, Button.PrimaryFire);
+    }
+
+rule: "Bot :: Released Secondary"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.SecondaryFire))
+    {
+        StopHoldingButton(player, Button.SecondaryFire);
+    }
+
+rule: "Bot :: Released Ability 1"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Ability1))
+    {
+        StopHoldingButton(player, Button.Ability1);
+    }
+
+rule: "Bot :: Released Ability 2"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Ability2))
+    {
+        StopHoldingButton(player, Button.Ability2);
+    }
+
+rule: "Bot :: Released Ultimate"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Ultimate))
+    {
+        StopHoldingButton(player, Button.Ultimate);
+    }
+
+rule: "Bot :: Released Jump"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Jump))
+    {
+        StopHoldingButton(player, Button.Jump);
+    }
+
+rule: "Bot :: Released Crouch"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Crouch))
+    {
+        StopHoldingButton(player, Button.Crouch);
+    }
+
+rule: "Bot :: Released Melee"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Melee))
+    {
+        StopHoldingButton(player, Button.Melee);
+    }
+
+rule: "Bot :: Released Reload"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Reload))
+    {
+        StopHoldingButton(player, Button.Reload);
+    }
+
+rule: "Bot :: Released Interact"
+    Event.OngoingPlayer
+    if (botAlive && !IsButtonHeld(owner, Button.Interact))
+    {
+        StopHoldingButton(player, Button.Interact);
+    }
+/* Input Emulation - End */

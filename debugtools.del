@@ -1,0 +1,96 @@
+import "../macros-ostw/main.del";
+
+
+rule: "Debug"
+{
+    CreateHudText(host, null, "Eye Position:", EyePosition(host), Location.Left, 3, Color.White, Color.White, Color.Blue);
+    CreateHudText(host, null, "Position:", PositionOf(host), Location.Left, 4, Color.White, Color.White, Color.Blue);
+    CreateHudText(host, null, "Throttle:", ThrottleOf(host), Location.Left, 5, Color.White, Color.White, Color.Blue);
+    CreateHudText(host, null, "Facing:", <"<0> (<1>, <2>)", FacingDirectionOf(host), HorizontalFacingAngleOf(host), VerticalFacingAngleOf(host)>, 
+    Location.Left, 6, Color.White, Color.White, Color.Blue);
+
+    CreateHudText(host, null, "Ray Cast Hit Position:", RayCastHitPosition(EyePosition(host), Destination(EyePosition(host), FacingDirectionOf(host), 100), 
+    all, host, true ), Location.Left, 7, Color.White, Color.White, Color.Blue);
+
+    CreateHudText(host, null, "Ray Cast Hit Normal:", RayCastHitNormal(EyePosition(host), Destination(EyePosition(host), FacingDirectionOf(host), 100),
+    all, host, true), Location.Left, 8, Color.White, Color.White, Color.Blue);
+
+    CreateHudText(host, null, "Ray Cast Hit Player:", RayCastHitPlayer(EyePosition(host),Destination(EyePosition(host), FacingDirectionOf(host), 100), 
+    all, host, true), Location.Left, 9, Color.White, Color.White, Color.Blue);
+
+    CreateHudText(host, null, "Camera Pos:", <"<0> (<1>)", cameraPos, Destination(cameraPos, FacingDirectionOf(host), 1)>, 
+    Location.Left, 10, Color.White, Color.White, Color.Blue);
+
+    CreateHudText(host, null, "Class Memory:", ClassMemory(), Location.Left, 11, Color.White, Color.White, Color.Blue);
+    CreateHudText(host, null, "Class Memory Used:", ClassMemoryUsed(), Location.Left, 12, Color.White, Color.White, Color.Blue);
+    CreateHudText(host, null, "Class Memory Created:", ClassMemoryRemaining(), Location.Left, 13, Color.White, Color.White, Color.Blue);
+}
+
+globalvar define cam ! = false;
+globalvar define cameraPos;
+
+rule: "Free cam"
+if (IsCommunicating(host, Communication.VoiceLineDown))
+{
+    cam = !cam;
+}
+
+rule: "Start Camera"
+if (cam)
+{
+    cameraPos = EyePosition(host);
+    StartCamera(host, cameraPos, cameraPos + FacingDirectionOf(host), 25);
+}
+
+rule: "Stop Camera"
+if (!cam)
+{
+    StopCamera(host);
+}
+
+rule: "TP to camera"
+if (cam && IsCommunicating(host, Communication.VoiceLineLeft))
+{
+    cam = false;
+    define storeFacing = FacingDirectionOf(host);
+    Teleport(host, cameraPos);
+    SetFacing(host, storeFacing, Relative.ToWorld);
+}
+
+rule: "Move camera"
+if (cam && DistanceBetween(Vector(), ThrottleOf(host)) > 0)
+{
+    define x = XOf(ThrottleOf(host));
+    define z = ZOf(ThrottleOf(host));
+
+    define right = CrossProduct(FacingDirectionOf(host), Up());
+
+    if (x < 0)
+        cameraPos += right / 2;
+    else if (x > 0)
+        cameraPos += -right / 2;
+    
+    if (z > 0)
+        cameraPos += FacingDirectionOf(host) / 2;
+    else if (z < 0)
+        cameraPos -= FacingDirectionOf(host) / 2;
+
+    MinWait();
+    LoopIfConditionIsTrue();
+}
+
+rule: "Move camera down"
+if (cam && IsButtonHeld(host, Button.Crouch))
+{
+    cameraPos += Down() / 2;
+    MinWait();
+    LoopIfConditionIsTrue();
+}
+
+rule: "Move camera up"
+if (cam && IsButtonHeld(host, Button.Jump))
+{
+    cameraPos += Up() / 2;
+    MinWait();
+    LoopIfConditionIsTrue();
+}

@@ -1,0 +1,41 @@
+{
+  "Lobby": {
+    "Max Spectators": 12,
+    "Return To Lobby": "Never"
+  },
+  "Modes": {
+    "All": {
+      "Game Mode Start": "Manual",
+      "Hero Limit": "Off"
+    },
+    "Deathmatch": {
+      "Enabled Maps": [
+        "Black Forest",
+        "Blizzard World",
+        "Castillo",
+        "Château Guillard",
+        "Dorado",
+        "Kanezaka",
+        "Ecopoint: Antarctica",
+        "Eichenwalde",
+        "Hanamura",
+        "Hollywood",
+        "King's Row",
+        "Lijiang Control Center",
+        "Lijiang Garden",
+        "Lijiang Night Market",
+        "Necropolis",
+        "Paris",
+        "Petra"
+      ],
+      "Score To Win": 30
+    }
+  },
+  "Heroes": {
+    "General": {
+      "Baptiste": {
+        "Immortality Field": false
+      }
+    }
+  }
+}

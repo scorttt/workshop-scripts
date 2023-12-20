@@ -1,0 +1,45 @@
+import "../macros-ostw/main.del";
+import "testSettings.json";
+rule: "Init"
+{
+    DisableCompletion();
+    DisableScoring();
+    SetMatchTime(10);
+}
+
+rule: "Player Init"
+Event.OngoingPlayer
+if (HasSpawned())
+{
+    StartDamageModification(player, RemoveFromArray(PlayersOnHero(HeroOf())), 0);
+}
+
+rule: "Swap hero"
+Event.OnDeath
+if (!EventWasEnvironment())
+if (HeroOf(Attacker()) != HeroOf(Victim()))
+{
+    ModifyPlayerScore(Attacker(), 1);
+    SmallMessage(Victim(), <"<0> infected you!", Attacker()>);
+    Wait(0.25);
+    SetPlayerScore(Victim(), 0);
+    ForcePlayerHero(Victim(), HeroOf(Attacker()));
+}
+
+rule: "All players the same hero; end round"
+if (NumberOfPlayers() >= 2)
+if (NumberOfHeroes(HeroOf(RandomValueInArray(all_living))) == CountOf(FilteredArray(all, HasSpawned(Curr())))) // ugly, but it works
+{
+    SmallMessage(host, "adkjsfhgh");
+}
+
+rule: "[Debug] :: Bots"
+if (IsButtonHeld(host, Button.Interact) && !IsButtonHeld(host, Button.Crouch))
+{
+    CreateDummyBot(Hero.Tracer, OppositeTeamOf(TeamOf(host)), -1, RayCastHitPosition(EyePosition(host), EyePosition(host) + Facing(host) * 100, null, null, true), Facing(host) * -1);
+}
+rule: "[Debug] :: Destroy Bots"
+if (IsButtonHeld(host, Button.Crouch) && IsButtonHeld(host, Button.Interact))
+{
+    DestroyAllDummyBots();
+}

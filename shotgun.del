@@ -1,0 +1,66 @@
+import "../macros-ostw/main.del";
+
+rule: "Rule 1"
+Event.OngoingPlayer
+{
+    // center
+    CreateEffect(all, Effect.Sphere, Color.Red, 
+        RayCastHitPosition(EyePosition(), EyePosition() + FacingDirectionOf() * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+    // upper left
+    CreateEffect(all, Effect.Sphere, Color.Purple, 
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(3) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + 3) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+    
+    // lower left
+    CreateEffect(all, Effect.Sphere, Color.Purple, 
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(3) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + -3) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+    // upper right
+    CreateEffect(all, Effect.Sphere, Color.Purple, 
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(-3) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + 3) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+    // lower right
+    CreateEffect(all, Effect.Sphere, Color.Purple, 
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(-3) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + -3) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+    // upper mid
+    CreateEffect(all, Effect.Sphere, Color.Purple, 
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(0) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + 4.5) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+    // lower mid
+    CreateEffect(all, Effect.Sphere, Color.Purple, 
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(0) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + -4.5) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+    // mid left
+    CreateEffect(all, Effect.Sphere, Color.Purple, 
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(4.5) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + 0) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+    // mid right
+    CreateEffect(all, Effect.Sphere, Color.Purple,
+        RayCastHitPosition(EyePosition(), EyePosition() + 
+        WorldVectorOf(Vector(TangentFromDegrees(-4.5) * 100, 0, 0), player, LocalVector.Rotation) + 
+        DirectionFromAngles(HorizontalFacingAngleOf(), VerticalFacingAngleOf() + 0) 
+        * 100, null, null, false), 0.25, EffectRev.VisibleToPositionAndRadius);
+
+}

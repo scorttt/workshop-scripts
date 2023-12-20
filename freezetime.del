@@ -1,0 +1,235 @@
+import "../macros-ostw/main.del";
+
+// globalvar
+globalvar define TIME_DUR = WorkshopSettingInteger("Constants", "Time Stop Duration", 10, 1, 100, 1);
+globalvar define TELE_CD = WorkshopSettingInteger("Constants", "Teleport Cooldown", 8, 0, 60, 2);
+globalvar define TBD_CD = WorkshopSettingInteger("Constants", "TBD Ability Cooldown", 1, 0, 60, 3);
+globalvar define DIST = WorkshopSettingReal("Constants", "Raycast Distance", 6.5, 0, 100, 4);
+globalvar define timeFrozen;
+globalvar define timeDur;
+globalvar define icon;
+
+// playervar
+playervar define teleCD;
+playervar define tbdCD;
+playervar define cooldownHud = [];
+playervar define timeStatusHud = [];
+playervar define timeStatusIcon = [];
+playervar define healingMod;
+playervar define usingTele;
+playervar define teleEffect;
+playervar define echoHP;
+
+
+// ult: stops time for everyone for 10 seconds
+// ability 1: teleports then launches the user
+// ability 2: who knows
+// secondary: who knows
+
+rule: "Init"
+Player.Echo
+Event.OngoingPlayer
+{
+    SetMaxHealth(player, 12.5);
+    AddHealthPoolToPlayer(player, HealthType.Shields, 175, true, true);
+    echoHP = LastCreatedHealthPool();
+    DisallowButton(player, Button.Ultimate);
+    DisallowButton(player, Button.Ability1);
+    DisallowButton(player, Button.Ability2);
+    DisallowButton(player, Button.SecondaryFire);
+
+    CreateHudText(player, null, null, <"<0>", UltimateChargePercent() == 100 ? <" \n<0> Time Stop [<2>]:  <1>", AbilityIconString(Hero.Sigma, Button.Ability1), IconString(Icon.Checkmark), InputBindingString(Button.Ultimate)> : <" \n<0> Time Stop [<2>]: <1>%", AbilityIconString(Hero.Sigma, Button.Ability1), UltimateChargePercent(), InputBindingString(Button.Ultimate)>>, Location.Top, 1, Color.White, Color.White, Color.White);
+    cooldownHud[0] = LastTextID();
+
+    CreateHudText(player, null, null, <"<0>", teleCD == 0 ? <"<0> Teleport [<2>]:  <1>", AbilityIconString(Hero.Zarya, Button.Ability2), IconString(Icon.Checkmark), InputBindingString(Button.Ability1)> : <"<0> Teleport [<2>]: <1>", AbilityIconString(Hero.Zarya, Button.Ability2), RoundToInteger(teleCD, Rounding.Up), InputBindingString(Button.Ability1)>>, Location.Top, 2, Color.White, Color.White, Color.White);
+    cooldownHud[1] = LastTextID();
+
+    CreateHudText(player, null, null, <"<0>", tbdCD == 0 ? <"<0> tbd [<2>]:  <1>", AbilityIconString(Hero.Tracer, Button.Ultimate), IconString(Icon.Checkmark), InputBindingString(Button.Ability2)> : <"<0> tbd [<2>]: <1>", AbilityIconString(Hero.Tracer, Button.Ultimate), RoundToInteger(tbdCD, Rounding.Up), InputBindingString(Button.Ability2)>>, Location.Top, 3, Color.White, Color.White, Color.White);
+    cooldownHud[2] = LastTextID();
+}
+
+rule: "Revert Changes"
+Event.OngoingPlayer
+if (!IsHero(Hero.Echo))
+{
+    SetMaxHealth(player, 100);
+
+    RemoveHealthPoolFromPlayer(echoHP);
+
+    DestroyHudText(cooldownHud[0]);
+    DestroyHudText(cooldownHud[1]);
+    DestroyHudText(cooldownHud[2]);
+
+    SetUltimateAbilityEnabled(player, true);
+
+    AllowButton(player, Button.Ultimate);
+    AllowButton(player, Button.Ability1);
+    AllowButton(player, Button.Ability2);
+    AllowButton(player, Button.SecondaryFire);
+}
+
+playervar define user;
+rule: "[Time] :: Activate Time Stop"
+Player.Echo
+Event.OngoingPlayer
+if (!timeFrozen && IsButtonHeld(player, Button.Ultimate) && UltimateChargePercent() == 100 && IsAlive())
+{
+    timeFrozen = true;
+    user = player;
+    SetUltimateCharge(player, 0);
+    SetUltimateAbilityEnabled(player, false);
+    timeDur = TIME_DUR;
+    ChaseVariableAtRate(timeDur, 0, 1, RateChaseReevaluation.None);
+}
+
+rule: "[Time] :: Deactivate Time Stop"
+Player.Echo
+Event.OngoingPlayer
+if (timeFrozen && timeDur == 0)
+{
+    timeFrozen = false;
+    user = null;
+    SetUltimateAbilityEnabled(player, true);
+    StopChasingVariable(timeDur);
+}
+
+// this will not work properly if more than one person is on echo on the same team; need a better fix
+define PlayerArray: RemoveFromArray(All(), PlayersOnHero(Hero.Echo, TeamOf(user)));
+
+rule: "[Time] :: Stop"
+Event.OngoingPlayer
+if (timeFrozen)
+{
+    PauseMatchTime();
+
+    DestroyHudText(timeStatusHud[0]);
+    DestroyHudText(timeStatusIcon[0]);
+    DestroyHudText(timeStatusHud[1]);
+    DestroyHudText(timeStatusIcon[1]);
+
+    Wait();
+
+    CreateHudText(player, null, null, <" \n\n\n\n\n\n<0>", icon>, Location.Top, 4, Color.White, Color.White, Color.Red);
+    timeStatusIcon[0] = LastTextID();
+    CreateHudText(player, null, null, <" \nTime will resume in <0>", RoundToInteger(timeDur, Rounding.Up)>, Location.Top, 5, Color.White, Color.White, Color.Red);
+    timeStatusHud[1] = LastTextID();
+
+    SetStatus(PlayerArray, null, Status.Frozen, TIME_DUR);
+    SetStatus(PlayerArray, null, Status.Unkillable, TIME_DUR);
+
+    ForceThrottle(PlayerArray, 0,0,0,0,0,0);
+
+    StartForcingPlayerOutlines(PlayerArray, All(), true, Color.Purple);
+
+    StartHealingModification(All(), All(), 0);
+    healingMod = LastHealingModificationID();
+
+    SetGravity(PlayerArray, 0);
+
+    ApplyImpulse(PlayerArray, Up(), 0.001);
+    ApplyImpulse(PlayerArray, Down(), 0.001);
+    ApplyImpulse(PlayerArray, Left(), 0.001);
+    ApplyImpulse(PlayerArray, Right(), 0.001);
+    ApplyImpulse(PlayerArray, Forward(), 0.001);
+    ApplyImpulse(PlayerArray, Backward(), 0.001);
+
+    for (define loop; 6; 1)
+    {
+        icon = "ㅤ";
+        Wait(0.25);
+        icon = "■";
+        Wait(0.25);
+    }
+}
+
+rule: "[Time] :: Resume"
+Event.OngoingPlayer
+if (!timeFrozen)
+{
+    UnpauseMatchTime();
+
+    DestroyHudText(timeStatusHud[0]);
+    DestroyHudText(timeStatusIcon[0]);
+    DestroyHudText(timeStatusHud[1]);
+    DestroyHudText(timeStatusIcon[1]);
+
+    Wait();
+
+    icon = "▶";
+
+    CreateHudText(player, null, null, <" \n\n\n\n\n\n<0>", icon>, Location.Top, 4, Color.White, Color.White, Color.SkyBlue);
+    timeStatusIcon[1] = LastTextID();
+    CreateHudText(player, null, null, " \nTime resumed", Location.Top, 5, Color.White, Color.White, Color.SkyBlue);
+    timeStatusHud[0] = LastTextID();
+
+    ClearStatus(All(), Status.Frozen);
+    ClearStatus(All(), Status.Unkillable);
+
+    StopForcingThrottle();
+
+    StopForcingPlayerOutlines(PlayerArray, All());
+
+    Wait();
+
+    // kill credit will not work properly if more than one person is on echo on the same team; need a better fix
+    Kill(FilteredArray(All(), Health(Curr()) <= 1), PlayersOnHero(Hero.Echo, TeamOf(user)));
+
+    StopForcingThrottle();
+
+    StopHealingModification(healingMod);
+
+    SetGravity(All(), 100);
+
+    Wait(3);
+
+    DestroyHudText(timeStatusIcon[1]);
+    DestroyHudText(timeStatusHud[0]);
+}
+
+define raycast: RayCastHitPosition(EyePosition(), EyePosition() + Facing() * DIST, null, AllDeadPlayers(), false);
+
+rule: "[Tele] :: Activate"
+Player.Echo
+Event.OngoingPlayer
+if (IsButtonHeld(player, Button.Ability1) && IsAlive() && teleCD == 0)
+{
+    usingTele = true;
+    CreateEffect(player, Effect.GoodAura, Color.SkyBlue, raycast, 0.5, EffectRev.VisibleToPositionAndRadius);
+    teleEffect = LastCreatedEntity();
+
+    StopChasingVariable(teleCD);
+}
+
+rule: "[Tele] :: Action"
+Player.Echo
+Event.OngoingPlayer
+if (usingTele && !IsButtonHeld(player, Button.Ability1))
+{
+    usingTele = false;
+
+    DestroyEffect(teleEffect);
+
+    ApplyImpulse(player, Up(), 0.001);
+    ApplyImpulse(player, Down(), 0.001);
+    ApplyImpulse(player, Left(), 0.001);
+    ApplyImpulse(player, Right(), 0.001);
+    ApplyImpulse(player, Forward(), 0.001);
+    ApplyImpulse(player, Backward(), 0.001);
+
+    Teleport(player, raycast);
+
+    if (IsButtonHeld(player, Button.Jump))
+        ApplyImpulse(player, FacingDirectionOf() + Vector(0, 0.5, 0), 25);
+    else if (IsButtonHeld(player, Button.Crouch))
+        ApplyImpulse(player, FacingDirectionOf() + Vector(0, -0.5, 0), 25);
+    else 
+        ApplyImpulse(player, FacingDirectionOf(), 25);
+
+    PlayEffect(AllyPlayers(), PlayEffect.BadPickupEffect, Color.SkyBlue, player, 1);
+    PlayEffect(EnemyPlayers(), PlayEffect.BadPickupEffect, Color.Red, player, 1);
+    PlayEffect(all, PlayEffect.BuffImpactSound, Color.White, player, 100);
+
+    teleCD = TELE_CD;
+
+    ChaseVariableAtRate(teleCD, 0, 1, RateChaseReevaluation.None);
+}

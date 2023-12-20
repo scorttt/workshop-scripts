@@ -1,0 +1,22 @@
+import "../macros-ostw/main.del";
+import "testSettings.json";
+playervar color color;
+rule: "create sphere"
+Event.OngoingPlayer
+{
+    CreateEffect(player, Effect.Sphere, color, Vector(0, 1, 0), 2, EffectRev.Color);
+}
+
+rule: "look sphere"
+Event.OngoingPlayer
+if (DistanceBetween(Vector(0, 1, 0), RayCastHitPosition(EyePosition(), EyePosition() + Facing() * DistanceBetween(EyePosition(), Vector(0, 1, 0)))) <= 2)
+{
+    color = Color.Red;
+}
+
+rule: "no look sphere"
+Event.OngoingPlayer
+if (DistanceBetween(Vector(0, 1, 0), RayCastHitPosition(EyePosition(), EyePosition() + Facing() * DistanceBetween(EyePosition(), Vector(0, 1, 0)))) >= 2)
+{
+    color = Color.Blue;
+}

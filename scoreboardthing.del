@@ -1,0 +1,40 @@
+import "../macros-ostw/main.del";
+define percentage: (NormalizedHealth() * 100);
+define r: (percentage <= 50) ? 255 : RoundToInteger(256 - (percentage - 50) * 5.12, Rounding.Down);
+define g: (percentage >= 50) ? 255 : RoundToInteger(percentage * 5.12, Rounding.Down);
+define healthColor: CustomColor(UpdateEveryFrame(r), UpdateEveryFrame(g), 0, 250);
+
+/* 
+shit that works:
+
+define r: (percentage > 50 ? 1 - 2 * (percentage - 50) / 100.0 : 1.0) * 255;
+define g: (percentage > 50 ? 1.0 : 2 * percentage / 100.0) * 255;
+
+define r: (percentage <= 50) ? 255 : RoundToInteger(256 - (percentage - 50) * 5.12, Rounding.Down);
+define g: (percentage >= 50) ? 255 : RoundToInteger(percentage * 5.12, Rounding.Down);
+*/
+
+rule: "rg"
+    Event.OngoingPlayer
+    {
+        CreateHudText(player, null, null, <"<0>", healthColor>);
+    }
+
+rule: "create text"
+    Event.OngoingPlayer
+    if (HasSpawned())
+    {
+        CreateHudText(AllyPlayers(), 
+                      IsDead() ? IconString(Icon.Skull) : HeroIconString(HeroOf()),
+                      <"<0> | <1>", player, UltimateChargePercent() == 100 ? IconString(Icon.Checkmark) : <"<0>%", UltimateChargePercent()>>,
+                      IsAlive() ? <"<0> HP", RoundToInteger(Health(), Rounding.Up)> : "Dead",
+                      Location.Left, SlotOf(), healthColor, Color.White, healthColor, HudTextRev.VisibleToSortOrderStringAndColor);
+        // CreateProgressBarHudText(AllyPlayers(), percentage, 
+        // <"<0> | <1> | <2>", 
+        // player, 
+        // IsAlive() ? <"<0> HP", RoundToInteger(Health(), Rounding.Nearest)> : "Dead", 
+        // UltimateChargePercent() == 100 ? IconString(Icon.Checkmark) : <"<0>%", UltimateChargePercent()>>, 
+        // Location.Left, SlotOf(), 
+        // healthColor, healthColor, 
+        // ProgressBarEvaluation.VisibleToValuesAndColor);
+    }

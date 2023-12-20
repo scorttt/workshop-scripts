@@ -1,0 +1,73 @@
+import "../macros-ostw/main.del";
+
+globalvar define WEAPON_SPREAD = 3.6; // lower = tighter
+globalvar define WEAPON_DAMAGE = 9;
+globalvar define WEAPON_WAIT = 0.05; // 0.016 = one tick
+playervar define hitPos;
+playervar define hitPlayer;
+playervar define spread;
+// playervar define effect;
+playervar define isFiring;
+playervar define primaryStartPos = WorldVectorOf(Right() - Vector(0, 0.3, 0), player) * 0.18;
+playervar define livingEnemies = RemoveFromArray(EnemyPlayers(), AllDeadPlayers());
+playervar define soundEffect;
+
+
+rule: "spread calc"
+    Event.OngoingPlayer
+    if (IsPrimaryHeld())
+    {
+        isFiring = true;
+        // livingEnemies = RemoveFromArray(EnemyPlayers(), AllDeadPlayers());
+        // primaryStartPos = WorldVectorOf(Right() - Vector(0, 0.3, 0), player) * 0.18;
+        spread = Vector(RandomReal(-WEAPON_SPREAD, WEAPON_SPREAD), RandomReal(-WEAPON_SPREAD, WEAPON_SPREAD), RandomReal(-WEAPON_SPREAD, WEAPON_SPREAD));
+        hitPos = RayCastHitPosition(EyePosition(), Facing() * 100 + EyePosition() + spread, livingEnemies, player);
+        hitPlayer = RayCastHitPlayer(EyePosition(), Facing() * 100 + EyePosition() + spread, livingEnemies, player);
+        // CreateBeamEffect(all, BeamType.BadBeam, EyePosition() + Facing() + primaryStartPos, hitPos, Color.Orange, EffectRev.None);
+        // effect = LastCreatedEntity();
+
+        if (DistanceBetween(hitPos, EyePosition(hitPlayer) + Vector(0,0.2,0)) < 0.3 && hitPlayer != null)
+        {
+            PlayEffect(player, PlayEffect.BuffImpactSound, Color.White, hitPlayer, 100);
+            Damage(hitPlayer, player, WEAPON_DAMAGE * 2); // headshot damage
+        }
+        else 
+        {
+            Damage(hitPlayer, player, WEAPON_DAMAGE); // normal damage
+        }
+
+        PlayEffect(all, PlayEffect.BadExplosion, Color.Orange, hitPos, 0.2); // hit effect
+
+        Wait(WEAPON_WAIT);
+        // DestroyEffect(effect);
+        LoopIfConditionIsTrue();
+    }
+
+rule: "isFiring reset"
+    Event.OngoingPlayer
+    if (!IsPrimaryHeld())
+    {
+        isFiring = false;
+    }
+
+rule: "DBG Text"
+    Event.OnPlayerJoin
+    {
+        CreateHudText(player, <"isFiring <0>", isFiring>, null, null, Location.Top, -1);
+    }
+
+rule: "isFiring true"
+    Event.OngoingPlayer
+    if (isFiring)
+    {
+        CreateEffect(all, Effect.EnergySound, Color.White, player, 500);
+        soundEffect = LastCreatedEntity();
+    }
+
+rule: "isFiring false"
+    Event.OngoingPlayer
+    if (!isFiring)
+    {
+        DestroyEffect(soundEffect);
+        // DestroyEffect(effect);
+    }

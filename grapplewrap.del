@@ -1,0 +1,91 @@
+import "../macros-ostw/main.del";
+import "testSettings.json";
+
+
+globalvar Number grappleDist = 20; // length of the grapple
+playervar Vector grappleStart;
+playervar Vector grappleEnd;
+playervar Boolean usingGrapple; // is the player using grapple
+playervar Number bendNum; // amount of bends in the grapple
+playervar Number lastBend; // latest bend in the grapple 
+
+rule: "Start Grapple"
+Event.OngoingPlayer
+if (IsInteractHeld())
+{
+    usingGrapple = true;
+
+    grappleStart = EyePos();
+    grappleEnd = EyePos() + Facing() * grappleDist;
+
+    CreateBeamEffect(All(), BeamType.GrappleBeam, player, RayHit(grappleStart, grappleEnd), Color.White, EffectRev.VisibleToPositionRadiusAndColor);
+
+    // while (usingGrapple)
+    // {
+    //     if (!IsInLineOfSight(player, RayHit(player, <Vector>player + Facing() * grappleDist)) && lastBend != bendNum)
+    //     {
+    //         bendNum++;
+    //         lastBend = bendNum;
+
+    //     }
+    // }
+}
+
+rule: "Player Lost Grapple LOS"
+Event.OngoingPlayer
+if (usingGrapple)
+if (Update(!IsInLineOfSight(player, RayHit(grappleStart, grappleEnd))))
+{
+    grappleEnd = RayHit(player, grappleEnd);
+    CreateBeamEffect(All(), BeamType.GrappleBeam, player, RayHit(grappleStart, grappleEnd), Color.White, EffectRev.VisibleToPositionRadiusAndColor);
+}
+
+// globalvar Number segmentCount = 10; // Number of segments in the rope
+// playervar Vector[] ropeSegments;
+
+    // private Vector GetRopeStartPosition()
+    // {
+    //     return <Vector>player;
+    // }
+
+    // private Vector GetRopeEndPosition()
+    // {
+    //     return RayHit(player, <Vector>player + Facing() * grappleDist);
+    // }
+
+
+// rule: "grapple"
+// Event.OngoingPlayer
+// if (IsInteractHeld())
+// {
+//     // Get the position and direction of the player's rope
+//     Vector startPosition = GetRopeStartPosition();
+//     Vector endPosition = GetRopeEndPosition();
+
+//     // Check if the rope has obstacles and adjust its position accordingly
+//     Vector direction = endPosition - startPosition;
+//     Number distance = DistanceBetween(startPosition, endPosition);
+
+//     for (Number i = 0; i < segmentCount; i++)
+//     {
+//         Vector targetPosition = startPosition + Norm(direction) * (distance / segmentCount) * i;
+//         ropeSegments[i] = targetPosition;
+
+//         if (i > 0)
+//         {
+//             // Bend the rope around obstacles by checking line of sight
+//             if (!IsInLineOfSight(ropeSegments[i - 1], ropeSegments[i]))
+//             {
+//                 Vector hitPoint = RayHit(ropeSegments[i - 1], ropeSegments[i]);
+//                 ropeSegments[i] = hitPoint;
+
+//                 CreateBeamEffect(All(), BeamType.GrappleBeam, ropeSegments[0], ropeSegments[segmentCount - 1]);
+//             }
+//         }
+//     }
+
+//     WaitIfTrue(0.032);
+//     LoopIfConditionIsTrue();
+
+//     DestroyAllEffects();
+// }

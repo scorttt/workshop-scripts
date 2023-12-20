@@ -1,0 +1,126 @@
+import "../macros-ostw/main.del";
+// import "classes.del";
+import "testSettings.json";
+
+globalvar Number MAX_NODE_DIST = 6;
+globalvar Number MAX_NODES = 6;
+globalvar Number MAX_ANGLE = 40;
+
+playervar Boolean place_mode;
+playervar Boolean valid_pos;
+playervar Vector node_offset;
+playervar Vector node_norm;
+playervar Vector node_pos;
+playervar Vector[] node_pos_arr;
+playervar Number node_cnt;
+playervar Color preview_color;
+playervar Any preview_eff;
+playervar Any nodes_eff;
+playervar Any[] node_rings;
+playervar Number node_i;
+rule: "toggle placement mode"
+Event.OngoingPlayer
+if (IsButtonHeld(player, Button.Interact))
+{
+    place_mode = !place_mode;
+
+    if (!place_mode)
+    {
+        valid_pos = false;
+        AllowButton(player, Button.PrimaryFire);
+        DestroyEffect(preview_eff);
+    }
+    else
+    {
+        DisallowButton(player, Button.PrimaryFire);
+        CreateBeamEffect(player, BeamType.GoodBeam, node_pos, node_pos + node_offset, preview_color, EffectRev.VisibleToPositionRadiusAndColor);
+        preview_eff = LastCreatedEntity();
+    }
+}
+
+Number NodeInRange(Vector input_pos)
+{
+    Number index = -1; // returned value, index of valid nearby node (-1 means invalid)
+
+    // loop through all existing nodes
+    for (Number i = 0; i < node_pos_arr.Length; i++)
+    {
+        Number dist = DistanceBetween(node_pos_arr[i], input_pos); // get the distance between the nodes
+
+        // check if the current node is near the input node
+        if (dist < 4)
+            index = i; // set index to current iteration, as its a valid index
+    }
+
+    // return the index
+    return index;
+}
+
+rule: "node position loop"
+Event.OngoingPlayer
+if (place_mode)
+{
+    Vector pos1 = RayCastHitPosition(EyePosition(), EyePosition() + Facing() * MAX_NODE_DIST, null, null);
+    node_norm = RayCastHitNormal(EyePosition(), EyePosition() + Facing() * MAX_NODE_DIST, null, null);
+
+    if (DistanceBetween(EyePosition(), pos1) > MAX_NODE_DIST - 0.05)
+    {
+        node_pos = RayCastHitPosition(pos1, pos1 - Vector(0, 10, 0), null, null);
+    }
+    else
+    {
+        node_pos = pos1;
+    }
+
+    Boolean range_check = NodeInRange(node_pos) == -1; // If NodeInRange returns -1, otherwise range_check = true (no nearby nodes)
+
+    if ((range_check || node_cnt == 0) && AngleBetweenVectors(node_norm, Up()) < MAX_ANGLE && DistanceBetween(node_pos, RayCastHitPosition(node_pos, node_pos + node_offset)) > 3)
+    {
+        valid_pos = true; // no nearby nodes or nodes exist, so its valid
+        preview_color = Color.Green;
+        node_offset = node_norm * 3;
+    }
+
+    else if (!range_check || AngleBetweenVectors(node_norm, Up()) > MAX_ANGLE || DistanceBetween(node_pos, RayCastHitPosition(node_pos, node_pos + node_offset)) < 3)
+    {
+        valid_pos = false; // theres a nearby node, invalid
+        preview_color = Color.Red;
+        node_offset = Vector(0, 3, 0);
+    }
+
+    MinWait();
+    LoopIfConditionIsTrue();
+}
+
+rule: "Placement Mode :: Placing"
+Event.OngoingPlayer
+if (place_mode)
+if (IsButtonHeld(player, Button.PrimaryFire))
+if (IsInLineOfSight(EyePosition(), node_pos))
+if (valid_pos)
+{
+    if (node_cnt > 0)
+    {
+        // destroy the node effect at the current node index (if one exists)
+        DestroyEffect(nodes_eff[node_i][0]);
+        DestroyEffect(nodes_eff[node_i][1]);
+        DestroyEffect(nodes_eff[node_i][2]);
+    }
+
+    CreateBeamEffect(all, BeamType.GoodBeam, node_pos, node_pos + node_norm * 3, Color.Turquoise, EffectRev.None);
+    nodes_eff[node_i][0] = LastCreatedEntity(); // set the node at the current node index to the one we just created
+    CreateEffect(all, Effect.Sphere, Color.Turquoise, node_pos, 0.25, EffectRev.None);
+    nodes_eff[node_i][1] = LastCreatedEntity(); // set the node at the current node index to the one we just created
+    CreateEffect(place_mode ? player : null, Effect.Ring, Color.Turquoise, Once(node_pos), 4);
+    nodes_eff[node_i][2] = LastCreatedEntity(); // set the node at the current node index to the one we just created
+
+    node_pos_arr[node_i] = node_pos; // save the node's position
+    node_i++; // increment the node index
+
+    if (node_cnt < MAX_NODES)
+        node_cnt++; // increment node count
+
+    // max node count reached, so reset the index to 0 for the next node
+    if (node_i == MAX_NODES)
+        node_i = 0;
+}

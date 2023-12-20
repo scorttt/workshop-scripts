@@ -1,0 +1,83 @@
+import "../macros-ostw/main.del";
+import "testSettings.json";
+globalvar str[] hp_arr;
+playervar num health;
+playervar str hp_str;
+playervar str hashp_str;
+playervar str dmghp_str;
+
+rule: "init"
+{
+    hp_arr = [  "■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■",
+                "□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□□"];
+}
+
+rule: "player init"
+Event.OngoingPlayer
+{
+    CreateInWorldText(FilteredArray(RemoveFromArray(all, player), HasSpawned() && IsAlive()), <"<0>\n", hp_str>, Update(EyePosition() + Vector(0, 0.275, 0)), 0.6, Clipping.DoNotClip, TextColor: Color.Red);
+    CreateInWorldText(FilteredArray(RemoveFromArray(all, player), HasSpawned() && IsAlive()), <"<0> | <1>",
+    player,
+    IsUsingUltimate() 
+        ? "Using Ultimate" 
+        : UltimateChargePercent() == 100 
+            ? <"<0>", IconString(Icon.Checkmark)>
+            : <"<0>%", UltimateChargePercent()>>, Update(EyePosition() + Vector(0, 0.25, 0)), 0.70, Clipping.DoNotClip);
+}
+
+void UpdateHpStr() playervar "Update HP String"
+{
+    hashp_str = StringSlice(hp_arr[0], 0, (Near(Health() / 25)));
+    dmghp_str = StringSlice(hp_arr[1], 0, (MaxHealth() / 25) - (Near(Health() / 25)));
+    hp_str = hashp_str + dmghp_str;
+
+    // hp_str = hp_arr[ Floor(Health() / (MaxHealth() + 1) * 20) ];
+}
+
+rule: "player join"
+Event.OnPlayerJoin
+{
+    WaitUntil(HasSpawned(), 9999);
+    health = Health();
+    DisableNameplates(all, all);
+    UpdateHpStr();
+}
+
+rule: "Damage Taken"
+Event.OnDamageTaken
+{
+    UpdateHpStr();
+    health = Health();
+}
+
+rule: "Health Changed"
+Event.OngoingPlayer
+if (Health() > health || Health() < health)
+{
+    UpdateHpStr();
+    health = Health();
+}
+
+rule: "Healing Taken"
+Event.OnHealingTaken
+{
+    UpdateHpStr();
+    health = Health();
+}
+
+rule: "alt form"
+Event.OngoingPlayer
+if (IsInAlternateForm() || IsDuplicating())
+{
+    UpdateHpStr();
+    health = Health();
+}
+
+rule: "Spawned"
+Event.OngoingPlayer
+if (IsAlive() || HasSpawned())
+{
+    health = Health();
+    Wait(0.1);
+    UpdateHpStr();
+}

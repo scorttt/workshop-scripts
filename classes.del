@@ -1,0 +1,190 @@
+import "../macros-ostw/main.del";
+
+class Math {
+    public static Number PI: Pi();
+    public static Number E: 2.71828182845904523536;
+    public static Number Floor(Number n): RoundToInteger(n, Rounding.Down);
+    public static Number Ceiling(Number n): RoundToInteger(n, Rounding.Up);
+    public static Number Near(Number n): RoundToInteger(n);
+    public static Number Quotient(Number n, Number d): Floor(n / d);
+    public static Number Clamp(Number n, Number min, Number max): Max(min, Min(n, max));
+    public static Number IsInRange(Number n, Number min, Number max): n >= min && n <= max;
+    public static Vector KinematicMotion3D(Vector startPos, Vector startVelocity, Vector acceleration, Number time):
+        startPos + startVelocity * time + 0.5 * acceleration * time * time;
+    public static Number KinematicMotion1D(Number startPos, Number startVelocity, Number acceleration, Number time):
+        startPos + startVelocity * time + 0.5 * acceleration * time * time;
+}
+
+class ComponentColor {
+    public Number Red;
+    public Number Green;
+    public Number Blue;
+    public Number Alpha;
+    public ComponentColor(Number red = 255, Number green = 255, Number blue = 255, Number alpha = 255) {
+        this.Red    = red;
+        this.Green  = green;
+        this.Blue   = blue;
+        this.Alpha  = alpha;
+    }
+    public ComponentColor(Color c) {
+        Number cIndex = IndexOfArrayValue(Colors.AllColors, c);
+        this.Red   = Colors.AllColorComponents[cIndex][0];
+        this.Green = Colors.AllColorComponents[cIndex][1];
+        this.Blue  = Colors.AllColorComponents[cIndex][2];
+        this.Alpha = Colors.AllColorComponents[cIndex][3];
+    }
+    public Color Out(): CustomColor(Red, Green, Blue, Alpha);
+}
+
+class Colors {
+    public static Color Gradient(ComponentColor Color1, ComponentColor Color2, Number fraction):
+        CustomColor(
+            LinearInterpolate(Color1.Red,   Color2.Red,   fraction),
+            LinearInterpolate(Color1.Green, Color2.Green, fraction),
+            LinearInterpolate(Color1.Blue,  Color2.Blue,  fraction),
+            LinearInterpolate(Color1.Alpha, Color2.Alpha, fraction)
+        );
+
+    public static Color[] AllColors: 
+        [Color.White, Color.Yellow, Color.Green, Color.Purple, Color.Red,
+         Color.Blue, Color.Aqua, Color.Orange, Color.SkyBlue, Color.Turquoise,
+         Color.LimeGreen, Color.Gray, Color.Violet, Color.Rose, Color.Black];
+    public static String[] AllColorNames:
+        ["White",     "Yellow",    "Green", 
+         "Purple",    "Red",       "Blue", 
+         "Aqua",      "Orange",    "SkyBlue", 
+         "Turquoise", "LimeGreen", "Gray", 
+         "Violet",    "Rose",      "Black"];
+    public static Number[][] AllColorComponents: 
+        [[255, 255, 255, 255], [255, 255,   0, 255], [ 69, 255,  87, 255], 
+         [161,  73, 197, 255], [200,   0,  19, 255], [ 39, 170, 255, 255], 
+         [  0, 234, 234, 255], [236, 153,   0, 255], [108, 190, 244, 255], 
+         [  0, 230, 151, 255], [160, 232,  27, 255], [127, 127, 127, 255], 
+         [100,  50, 255, 255], [255,  50, 145, 255], [  0,   0,   0, 255]];
+}
+
+class EasingFunctions {
+    private static Number c1: 1.70158;
+    private static Number c2: c1 * 1.525;
+    private static Number c3: c1 + 1;
+    private static Number c4: (2 * Math.PI) / 3;
+    private static Number c5: (2 * Math.PI) / 4.5;
+    private static Number n1: 7.5625;
+    private static Number d1: 2.75;
+    private static Number pow2(Number n): n * n;
+    private static Number pow3(Number n): n * n * n;
+    private static Number pow4(Number n): n * n * n * n;
+    private static Number pow5(Number n): n * n * n * n * n;
+    
+    public static Number EaseInSine(Number frac): 1 - CosineFromRadians(frac * Math.PI / 2);
+
+    public static Number EaseOutSine(Number frac): SineFromRadians(frac * Math.PI / 2);
+
+    public static Number EaseInOutSine(Number frac): -1 * (CosineFromRadians(Math.PI * frac) - 1) / 2;
+
+    public static Number EaseInQuad(Number frac): pow2(frac);
+
+    public static Number EaseOutQuad(Number frac): 1 - pow2(1 - frac);
+    
+    public static Number EaseInOutQuad(Number frac):
+        frac < 0.5 
+            ? 2 * pow2(frac)
+            : 1 - pow2(-2 * frac + 2) / 2;
+
+    public static Number EaseInCubic(Number frac): pow3(frac);
+    public static Number EaseOutCubic(Number frac): 1 - pow3(1 - frac);
+    
+    public static Number EaseInOutCubic(Number frac):
+        frac < 0.5 
+            ? 4 * pow3(frac) 
+            : 1 - pow3(-2 * frac + 2) / 2;
+
+    public static Number EaseInQuart(Number frac): pow4(frac);
+    
+    public static Number EaseOutQuart(Number frac): 1 - pow4(1 - frac);
+    
+    public static Number EaseInOutQuart(Number frac):
+        frac < 0.5 
+            ? 8 * pow4(frac)
+            : 1 - pow4(-2 * frac + 2) / 2;
+    
+    public static Number EaseInQuint(Number frac): pow5(frac);
+    
+    public static Number EaseOutQuint(Number frac): 1 - pow5(1 - frac);
+    
+    public static Number EaseInOutQuint(Number frac):
+        frac < 0.5 
+            ? 16 * pow5(frac)
+            : 1 - pow5(-2 * frac + 2) / 2;
+    
+    public static Number EaseInExpo(Number frac): frac == 0 ? 0 : 2^(10 * frac - 10);
+
+    public static Number EaseOutExpo(Number frac): frac == 1 ? 1 : 1 - 2^(-10 * frac);
+    
+    public static Number EaseInOutExpo(Number frac):
+        frac == 0 
+            ? 0 
+            : frac == 1 
+                ? 1 
+                : frac < 0.5 
+                    ? 2 ^ (20 * frac - 10) / 2 
+                    : (2 - 2 ^ (-20 * frac + 10)) / 2;
+    
+    public static Number EaseInCirc(Number frac): 1 - SquareRoot(1 - pow2(frac));
+    
+    public static Number EaseOutCirc(Number frac): SquareRoot(1 - pow2(frac - 1));
+    
+    public static Number EaseInOutCirc(Number frac):
+        frac < 0.5
+            ? (1 - SquareRoot(1 - pow2(2 * frac))) / 2
+            : (SquareRoot(1 - pow2(-2 * frac + 2)) + 1) / 2;
+
+    public static Number EaseInBack(Number frac): c3 * pow3(frac) - c1 * pow2(frac);
+    
+    public static Number EaseOutBack(Number frac): 1 + c3 * pow3(frac - 1) + c1 * pow2(frac - 1);
+    
+    public static Number EaseInOutBack(Number frac):
+        frac < 0.5
+            ? (pow2(2 * frac) * ((c2 + 1) * 2 * frac - c2)) / 2
+            : (pow2(2 * frac - 2) * ((c2 + 1) * (frac * 2 - 2) + c2) + 2) / 2;
+    
+    public static Number EaseInElastic(Number frac):
+        frac == 0 
+            ? 0 
+            : frac == 1
+                ? 1
+                : -(2 ^ (10 * frac - 10)) * SineFromRadians((frac * 10 - 10.75) * c4);
+    
+    public static Number EaseOutElastic(Number frac):
+        frac == 0 
+            ? 0 
+            : frac == 1 
+                ? 1
+                : 2 ^ (-10 * frac) * SineFromRadians((frac * 10 - 0.75) * c4) + 1;
+
+    public static Number EaseInOutElastic(Number frac):
+        frac == 0 
+            ? 0 
+            : frac == 1 
+                ? 1 
+                : frac < 0.5
+                    ? -(2 ^ (20 * frac - 10) * SineFromRadians((20 * frac - 11.125) * c5)) / 2
+                    : (2 ^ (-20 * frac + 10) * SineFromRadians((20 * frac - 11.125) * c5)) / 2 + 1;
+
+    public static Number EaseInBounce(Number frac):
+        1 - EaseOutBounce(1 - frac);
+    
+    public static Number EaseOutBounce(Number frac):
+        frac < 1 / d1 
+            ? n1 * pow2(frac)
+            : frac < 2 / d1 
+                ? n1 * pow2(frac - 1.5 / d1) + 0.75
+                : frac < 2.5 / d1 
+                    ? n1 * pow2(frac - 2.25 / d1) + 0.9375 
+                    : n1 * pow2(frac - 2.625 / d1) + 0.984375;
+    
+    public static Number EaseInOutBounce(Number frac):
+        frac < 0.5
+            ? (1 - EaseOutBounce(1 - 2 * frac)) / 2
+            : (1 + EaseOutBounce(2 * frac - 1)) / 2;
+}

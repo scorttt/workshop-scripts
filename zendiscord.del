@@ -1,0 +1,22 @@
+import "../macros-ostw/main.del";
+
+playervar define zenTarget;
+playervar define zenIcon;
+
+rule: "give icon"
+    Event.OngoingPlayer
+    if ( IsButtonHeld(player, Button.Interact) )
+    {
+        zenTarget = RayCastHitPlayer(EyePosition(), EyePosition() + Facing() * 100, EnemyPlayers(), AllyPlayers());
+        CreateInWorldText(player, <"<0>", AbilityIconString(Hero.Zenyatta, ButtonValue(Button.Ability2))>, zenTarget, 2, Clipping.DoNotClip, InworldTextRev.VisibleToPositionAndString);
+        zenIcon = LastTextID();
+    }
+
+rule: "remove icon"
+    Event.OngoingPlayer
+    if ( !IsInLineOfSight(player, zenTarget) )
+    {
+        WaitIfTrue(3);
+        DestroyInWorldText(zenIcon);
+        SmallMessage(player, "Orb of Discord returned");
+    }

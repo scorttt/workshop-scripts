@@ -1,0 +1,81 @@
+import "../macros-ostw/main.del";
+import "testSettings.json";
+
+globalvar Boolean asdf;
+
+globalvar Number waitTime;
+
+globalvar Number xOrbs;
+globalvar Number yOrbs;
+globalvar Number zOrbs;
+globalvar Number baseScale;
+globalvar Number scaleFactor;
+globalvar Number positionFactor;
+globalvar Number sinSpeed;
+globalvar Number sinOffset;
+globalvar Number maxOrbSize;
+
+globalvar Number orbSize;
+globalvar Vector posVector;
+globalvar Number yOffset;
+
+rule: ":)"
+{
+    xOrbs = WorkshopSettingInteger("Orb Amount (X * Y * Z must not exceed 256)", "X", 4, 1, 32);
+    yOrbs = WorkshopSettingInteger("Orb Amount (X * Y * Z must not exceed 256)", "Y", 4, 1, 32);
+    zOrbs = WorkshopSettingInteger("Orb Amount (X * Y * Z must not exceed 256)", "Z", 4, 1, 32);
+
+    yOffset = WorkshopSettingInteger("Orb Settings", "Cube Y Offset", 20, -70, 70, -1);
+    baseScale = WorkshopSettingReal("Orb Settings", "Base Scale", 2, 0.1, 10, 0);
+    scaleFactor = WorkshopSettingReal("Orb Settings", "Scale Factor", 0.5, 0.3, 1.2, 1);
+    sinSpeed = WorkshopSettingReal("Orb Settings", "Sinusoidal Speed", 25, 5, 50, 2);
+    sinOffset = WorkshopSettingReal("Orb Settings", "Sinusoidal Offset", 4, 0, 10, 3);
+    positionFactor = WorkshopSettingReal("Orb Settings", "Position Factor", 30, 10, 50, 4);
+    maxOrbSize = WorkshopSettingReal("Orb Settings", "Max Orb Size", 2.4, 0, 5, 5);
+
+    waitTime = Max(0.032 * (xOrbs * yOrbs * zOrbs / 32), 0.016);
+
+    Wait(2);
+    while (true)
+    {
+        Number scale = (baseScale + SinRad(Time())) * scaleFactor;
+
+        for (Number x = 0; x < xOrbs; x++)
+            for (Number y = 0; y < yOrbs; y++)
+                for (Number z = 0; z < zOrbs; z++)
+                {
+                    Number orbScale = (x + y + z) / positionFactor;
+
+                    Number scatter = SinRad(orbScale * sinSpeed + (Time() * sinOffset));
+
+                    Vector orbPos = Vector(
+                        (x - xOrbs / 2) * (scale * 3) + scatter,
+                        (y - yOrbs / 2) * (scale * 2) + scatter,
+                        (z - zOrbs / 2) * (scale * 3) + scatter
+                    );
+
+                    posVector[x][y][z] = orbPos;
+
+                    orbSize = (maxOrbSize - scale) * orbScale;
+                }
+
+        asdf = true;
+
+        Wait(waitTime);
+    }
+}
+
+rule: ":("
+if (asdf)
+{
+    Vector offset! = Vector(0, yOffset, 0);
+    for (Number i! = 0; i < xOrbs; i++)
+        for (Number j! = 0; j < yOrbs; j++)
+            for (Number k! = 0; k < zOrbs; k++)
+            {
+                CreateEffect(all, Effect.Sphere, RainbowColor(), posVector[Once(i)][Once(j)][Once(k)] + offset, orbSize, EffectRev.VisibleToPositionRadiusAndColor);
+                Wait(0.032);
+            }
+
+    ServerStats(host, 0);
+}

@@ -1,0 +1,42 @@
+import "../macros-ostw/main.del";
+globalvar define board;
+globalvar define vecBoard;
+globalvar define boardPos;
+globalvar define baseX;
+globalvar define baseY;
+globalvar define baseZ;
+rule: "board"
+    Event.OngoingPlayer
+    if (IsAlive() && IsButtonHeld(EventPlayer(), Button.Reload) && player == HostPlayer())
+    {
+        DestroyAllEffects();
+        Wait(0.25);
+
+        boardPos = RayCastHitPosition(EyePosition(), EyePosition() + (FacingDirectionOf() * 20), null, null, false);
+        baseX = RoundToInteger(XOf(boardPos));
+        baseZ = RoundToInteger(ZOf(boardPos));
+        boardPos = Vector(baseX, YOf(boardPos), baseZ);
+
+        for (define xCoord = 0; xCoord < 8; xCoord++)
+        {
+            for (define yCoord = 0; yCoord < 8; yCoord++)
+            {
+                define gridPos = boardPos + Vector(xCoord, 0, yCoord);
+                vecBoard[xCoord][yCoord] = gridPos;
+
+                if (xCoord % 2 == 0)
+                {
+                    if (yCoord % 2 == 0)
+                        CreateEffect(AllPlayers(), Effect.Sphere, Color.Red, gridPos, 0.25, EffectRev.None);
+                    else
+                        CreateEffect(AllPlayers(), Effect.Sphere, Color.Blue, gridPos, 0.25, EffectRev.None);
+                }
+                else if (yCoord % 2 == 0)
+                    CreateEffect(AllPlayers(), Effect.Sphere, Color.Blue, gridPos, 0.25, EffectRev.None);
+                else
+                    CreateEffect(AllPlayers(), Effect.Sphere, Color.Red, gridPos, 0.25, EffectRev.None);
+
+                board[xCoord][yCoord] = LastCreatedEntity();
+            }
+        }
+    }
